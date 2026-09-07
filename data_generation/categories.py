@@ -1,21 +1,6 @@
 """
-Kavach — Category & ITC eligibility definitions.
+LedgerPilot - Category & ITC eligibility definitions.
 
-This file is the single source of truth for the 14-category taxonomy used to
-label synthetic (and later, real) transactions. It is deliberately kept
-separate from the generator script so the SAME definitions can be imported by
-the GST/TDS rule engine later (Phase 5) — categories and their ITC treatment
-should never be defined in two places.
-
-Each category encodes:
-  - a real GST rate (or 'exempt')
-  - real ITC eligibility per Section 17(5) of the CGST Act, 2017
-  - a short defensible reason (this is what goes in `itc_blocked_reason` and
-    what you say in viva when asked "why is this blocked?")
-
-IMPORTANT: gst_rate here is a *typical* rate for demo/training purposes.
-Real invoices vary by exact HSN/SAC code — flag this simplification honestly
-in your synopsis/report, don't present it as exhaustive.
 """
 
 from dataclasses import dataclass, field

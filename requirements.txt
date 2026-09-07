@@ -1,0 +1,12 @@
+opencv-python
+pytesseract
+pillow
+numpy
+faker
+pandas
+scikit-learn
+joblib
+flask
+flask-cors
+xgboost
+pytest

@@ -1,25 +1,6 @@
 """
-Kavach — Synthetic Transaction Dataset Generator (Phase 1 deliverable)
+LedgerPilot — Synthetic Transaction Dataset Generator
 
-WHY SYNTHETIC (put this in DECISIONS.md verbatim, it's your justification):
-Real MSME bank statements/invoices are sensitive and scarce for a student team
-to legally collect at scale. Since ground truth here comes from applying
-known GST/ITC rules (not subjective human judgement), synthetic generation
-from rule-grounded templates gives correct-by-construction labels, avoids
-any privacy exposure, and lets us control class balance precisely — all of
-which a purely manually-labeled real dataset could not guarantee on this
-timeline. This is a deliberate methodological choice, not a shortcut; report
-it as such in the synopsis.
-
-WHAT THIS SCRIPT DOES NOT DO:
-It does not simulate scanned-document image noise (blur, skew, poor
-lighting) — that is a separate concern for the OCR pipeline (Phase 2), which
-needs real or realistically-rendered document images, not CSV rows. Keep the
-two pipelines conceptually separate: this script tests/trains the
-CATEGORIZATION model on clean-ish text; OCR robustness is tested elsewhere.
-
-USAGE:
-    python3 generate_synthetic_data.py --rows 3000 --seed 42 --out transactions.csv
 """
 
 import argparse

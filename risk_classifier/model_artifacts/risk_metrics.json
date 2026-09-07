@@ -1,0 +1,94 @@
+{
+  "accuracy": 0.9933333333333333,
+  "per_class_report": {
+    "High": {
+      "precision": 0.9166666666666666,
+      "recall": 1.0,
+      "f1-score": 0.9565217391304348,
+      "support": 22.0
+    },
+    "Low": {
+      "precision": 1.0,
+      "recall": 0.9930555555555556,
+      "f1-score": 0.9965156794425087,
+      "support": 288.0
+    },
+    "Medium": {
+      "precision": 0.993103448275862,
+      "recall": 0.993103448275862,
+      "f1-score": 0.993103448275862,
+      "support": 290.0
+    },
+    "accuracy": 0.9933333333333333,
+    "macro avg": {
+      "precision": 0.9699233716475094,
+      "recall": 0.9953863346104725,
+      "f1-score": 0.9820469556162686,
+      "support": 600.0
+    },
+    "weighted avg": {
+      "precision": 0.9936111111111112,
+      "recall": 0.9933333333333333,
+      "f1-score": 0.9933999899005201,
+      "support": 600.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      22,
+      0,
+      0
+    ],
+    [
+      0,
+      286,
+      2
+    ],
+    [
+      2,
+      0,
+      288
+    ]
+  ],
+  "class_labels": [
+    "High",
+    "Low",
+    "Medium"
+  ],
+  "top_features": [
+    {
+      "name": "itc_claimed_but_blocked",
+      "importance": 0.5933508276939392
+    },
+    {
+      "name": "late_filing_days",
+      "importance": 0.2871027886867523
+    },
+    {
+      "name": "cat_employee_insurance",
+      "importance": 0.051613327115774155
+    },
+    {
+      "name": "tax_amount",
+      "importance": 0.01761898770928383
+    },
+    {
+      "name": "has_valid_gstin",
+      "importance": 0.016827428713440895
+    },
+    {
+      "name": "cat_exempt_non_gst",
+      "importance": 0.009069979190826416
+    },
+    {
+      "name": "cat_food_catering",
+      "importance": 0.009065602906048298
+    },
+    {
+      "name": "amount",
+      "importance": 0.007894804701209068
+    }
+  ],
+  "test_set_size": 600,
+  "train_set_size": 2400
+}
