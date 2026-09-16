@@ -4,68 +4,209 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LedgerPilot — Compliance Co-Pilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --bg:#f6f7fb;
+    --surface:#ffffff;
+    --surface-2:#f8f9fc;
+    --border:#e7e9f1;
+    --border-strong:#d9dce6;
+    --text-primary:#0f1729;
+    --text-secondary:#5b6472;
+    --text-tertiary:#98a0ad;
+    --accent:#4f46e5;
+    --accent-hover:#4338ca;
+    --accent-soft:#eef1ff;
+    --accent-soft-strong:#e0e4ff;
+    --success:#0f9d64;
+    --success-soft:#e8f9f1;
+    --warning:#b45309;
+    --warning-soft:#fef6e7;
+    --danger:#dc2626;
+    --danger-soft:#fdecec;
+    --neutral-soft:#eef0f4;
+    --shadow-sm:0 1px 2px rgba(15,23,42,.05);
+    --shadow-md:0 6px 20px -4px rgba(15,23,42,.08), 0 2px 6px -2px rgba(15,23,42,.05);
+    --radius-lg:20px;
+    --radius-md:12px;
+    --radius-sm:8px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:'Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:
+      radial-gradient(circle at 15% -10%, rgba(79,70,229,.08), transparent 45%),
+      radial-gradient(circle at 100% 0%, rgba(79,70,229,.05), transparent 40%),
+      var(--bg);
+    color:var(--text-primary);
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-soft-strong); }
+
+  .eyebrow{display:inline-flex;align-items:center;gap:7px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:600;letter-spacing:.02em;padding:5px 12px;border-radius:999px;border:1px solid var(--accent-soft-strong);}
+  .eyebrow-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .logo-mark{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);flex-shrink:0;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);position:relative;overflow:hidden;}
+  .card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#4f46e5,#7c3aed,#2563eb);}
+
+  .tabs-wrap{position:relative;display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:4px;}
+  .tab-indicator{position:absolute;top:4px;bottom:4px;left:4px;background:var(--surface);border-radius:9px;box-shadow:var(--shadow-sm);transition:transform .28s cubic-bezier(.4,0,.2,1), width .28s cubic-bezier(.4,0,.2,1);z-index:0;}
+  .tab-btn{position:relative;z-index:1;flex:1;padding:10px 14px;border:none;background:transparent;font-family:inherit;font-weight:600;font-size:14px;color:var(--text-secondary);cursor:pointer;border-radius:9px;transition:color .2s ease;display:flex;align-items:center;justify-content:center;gap:6px;}
+  .tab-btn.active{color:var(--text-primary);}
+
+  label.field-label{display:block;font-size:12px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:6px;}
+  .input{width:100%;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:11px 14px;font-size:14px;font-family:inherit;color:var(--text-primary);transition:border-color .15s ease, box-shadow .15s ease;}
+  .input::placeholder{color:var(--text-tertiary);}
+  .input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3.5px var(--accent-soft);}
+  .input-prefix-wrap{position:relative;}
+  .input-prefix{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-tertiary);font-weight:600;font-size:14px;pointer-events:none;}
+  .input-prefix-wrap .input{padding-left:28px;}
+
+  .chip{display:flex;align-items:center;gap:8px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:9px 10px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text-secondary);transition:border-color .15s ease, background .15s ease, color .15s ease;user-select:none;}
+  .chip:hover{border-color:var(--accent);}
+  .chip-box{width:16px;height:16px;border-radius:5px;border:1.5px solid var(--border-strong);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s ease, border-color .15s ease;}
+  .chip-box svg{width:10px;height:10px;opacity:0;transition:opacity .12s ease;}
+  .chip:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent);}
+  .chip:has(input:checked) .chip-box{background:var(--accent);border-color:var(--accent);}
+  .chip:has(input:checked) .chip-box svg{opacity:1;}
+
+  .dropzone{border:1.5px dashed var(--border-strong);border-radius:var(--radius-md);padding:36px 20px;text-align:center;transition:border-color .2s ease, background .2s ease;background:var(--surface-2);}
+  .dropzone:hover{border-color:var(--accent);background:var(--accent-soft);}
+  .dropzone-icon{width:44px;height:44px;border-radius:12px;background:var(--surface);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--accent);}
+
+  .btn-primary{width:100%;background:var(--accent);color:#fff;font-weight:600;font-size:14px;padding:12px;border:none;border-radius:var(--radius-sm);cursor:pointer;box-shadow:var(--shadow-sm);transition:transform .15s ease, box-shadow .15s ease, background .15s ease;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .btn-primary:hover{background:var(--accent-hover);transform:translateY(-1px);box-shadow:var(--shadow-md);}
+  .btn-primary:active{transform:translateY(0) scale(.98);}
+  .link-btn{color:var(--accent);font-weight:600;font-size:14px;text-decoration:underline;text-underline-offset:3px;background:none;border:none;cursor:pointer;font-family:inherit;}
+  .link-btn:hover{color:var(--accent-hover);}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;}
+  .badge-success{background:var(--success-soft);color:var(--success);}
+  .badge-warning{background:var(--warning-soft);color:var(--warning);}
+  .badge-danger{background:var(--danger-soft);color:var(--danger);}
+  .badge-neutral{background:var(--neutral-soft);color:var(--text-secondary);}
+
+  .stat-tile{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;}
+  .stat-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
+
+  .loading-row{display:flex;align-items:center;justify-content:center;gap:10px;color:var(--text-secondary);font-size:14px;font-weight:500;padding:28px 0;}
+  .spinner{width:16px;height:16px;border-radius:50%;border:2px solid var(--accent-soft-strong);border-top-color:var(--accent);animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  #result, #error{animation:fadeSlideIn .35s cubic-bezier(.16,1,.3,1) both;}
+  @keyframes fadeSlideIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+  .ocr-block{background:#0f1729;color:#c9d1e0;border-radius:var(--radius-sm);padding:14px;font-family:'SFMono-Regular',Menlo,Consolas,monospace;font-size:12.5px;line-height:1.6;white-space:pre-wrap;max-height:220px;overflow:auto;}
+
+  .alert{border-radius:var(--radius-md);padding:14px 16px 14px 46px;font-size:14px;font-weight:500;margin-bottom:24px;background-repeat:no-repeat;background-position:16px center;background-size:18px 18px;border:1px solid transparent;}
+  .alert-danger{background-color:var(--danger-soft);color:var(--danger);border-color:#f6d0d0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23dc2626' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 9v4M12 17h.01M10.29 3.86l-8.18 14.18A2 2 0 0 0 3.9 21h16.2a2 2 0 0 0 1.79-2.96L13.71 3.86a2 2 0 0 0-3.42 0z'/%3E%3C/svg%3E");}
+</style>
 </head>
-<body class="bg-slate-50 min-h-screen">
-  <div class="max-w-3xl mx-auto px-6 py-10">
-    <header class="mb-8">
-      <h1 class="text-3xl font-bold text-slate-900">LedgerPilot</h1>
-      <p class="text-slate-500 mt-1">AI Compliance Co-Pilot for Indian MSMEs — GST categorization, ITC eligibility, and penalty-risk assessment.</p>
+<body>
+  <div class="max-w-3xl mx-auto px-6 py-14">
+    <header class="mb-9">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="logo-mark">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M12 3l8 4v5c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V7l8-4z"/></svg>
+        </div>
+        <span class="text-lg font-bold tracking-tight" style="color:var(--text-primary)">LedgerPilot</span>
+      </div>
+      <span class="eyebrow"><span class="eyebrow-dot"></span>AI-Powered · GST Compliance</span>
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mt-4" style="color:var(--text-primary)">Compliance Co-Pilot for Indian MSMEs</h1>
+      <p class="mt-3 text-base" style="color:var(--text-secondary); max-width:44rem;">Instantly categorize transactions, compute GST &amp; Input Tax Credit eligibility, and flag penalty risk — from typed entries or photographed receipts.</p>
     </header>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
-      <div class="flex gap-2 mb-6">
-        <button id="tab-text" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-white">Enter Manually</button>
-        <button id="tab-image" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-100 text-slate-600">Upload Receipt</button>
+    <div class="card p-6 sm:p-7 mb-6">
+      <div id="tabs-wrap" class="tabs-wrap mb-7">
+        <div id="tab-indicator" class="tab-indicator"></div>
+        <button id="tab-text" class="tab-btn active">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          Enter Manually
+        </button>
+        <button id="tab-image" class="tab-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          Upload Receipt
+        </button>
       </div>
 
       <!-- Manual entry form -->
       <div id="panel-text">
-        <div class="space-y-4">
+        <div class="space-y-5">
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Transaction Description</label>
-            <input id="description" type="text" placeholder="e.g. Monthly Rent - Shop Premises"
-              class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-900">
+            <label class="field-label">Transaction Description</label>
+            <input id="description" type="text" placeholder="e.g. Monthly Rent - Shop Premises" class="input">
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Amount (₹)</label>
-              <input id="amount" type="number" placeholder="18500"
-                class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-900">
+              <label class="field-label">Amount</label>
+              <div class="input-prefix-wrap">
+                <span class="input-prefix">₹</span>
+                <input id="amount" type="number" placeholder="18,500" class="input">
+              </div>
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Transaction Date</label>
-              <input id="txn-date" type="date"
-                class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-900">
+              <label class="field-label">Transaction Date</label>
+              <input id="txn-date" type="date" class="input">
             </div>
           </div>
-          <div class="grid grid-cols-3 gap-4 text-sm">
-            <label class="flex items-center gap-2"><input id="claimed-itc" type="checkbox" checked> Claiming ITC</label>
-            <label class="flex items-center gap-2"><input id="valid-gstin" type="checkbox" checked> Valid GSTIN</label>
-            <label class="flex items-center gap-2"><input id="intra-state" type="checkbox" checked> Intra-state</label>
+          <div>
+            <label class="field-label">Filing Details</label>
+            <div class="grid grid-cols-3 gap-3">
+              <label class="chip">
+                <input id="claimed-itc" type="checkbox" checked class="sr-only">
+                <span class="chip-box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+                Claiming ITC
+              </label>
+              <label class="chip">
+                <input id="valid-gstin" type="checkbox" checked class="sr-only">
+                <span class="chip-box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+                Valid GSTIN
+              </label>
+              <label class="chip">
+                <input id="intra-state" type="checkbox" checked class="sr-only">
+                <span class="chip-box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+                Intra-state
+              </label>
+            </div>
           </div>
-          <button id="submit-text" class="w-full bg-slate-900 text-white rounded-lg py-2.5 font-medium hover:bg-slate-800 transition">
+          <button id="submit-text" class="btn-primary mt-1">
             Analyze Transaction
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </button>
         </div>
       </div>
 
       <!-- Image upload form -->
       <div id="panel-image" class="hidden">
-        <div class="border-2 border-dashed border-slate-300 rounded-xl p-10 text-center">
+        <div class="dropzone">
           <input id="file-input" type="file" accept="image/*" class="hidden">
-          <button id="pick-file" class="text-slate-700 font-medium underline">Choose a receipt image</button>
-          <p id="file-name" class="text-sm text-slate-400 mt-2"></p>
+          <div class="dropzone-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+          </div>
+          <button id="pick-file" type="button" class="link-btn">Choose a receipt image</button>
+          <p class="text-sm mt-2" style="color:var(--text-tertiary)">PNG or JPG — OCR runs automatically</p>
+          <p id="file-name" class="text-sm mt-2 font-medium" style="color:var(--text-secondary)"></p>
         </div>
-        <button id="submit-image" class="w-full mt-4 bg-slate-900 text-white rounded-lg py-2.5 font-medium hover:bg-slate-800 transition">
+        <button id="submit-image" class="btn-primary mt-5">
           Upload &amp; Analyze
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </button>
       </div>
     </div>
 
-    <div id="loading" class="hidden text-center text-slate-400 py-6">Analyzing…</div>
-    <div id="error" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-6"></div>
-    <div id="result" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-6"></div>
+    <div id="loading" class="hidden loading-row">
+      <span class="spinner"></span>
+      Analyzing transaction…
+    </div>
+    <div id="error" class="hidden alert alert-danger"></div>
+    <div id="result" class="hidden card p-6 sm:p-7"></div>
   </div>
 
 <script>
@@ -75,19 +216,30 @@ const tabText = document.getElementById("tab-text");
 const tabImage = document.getElementById("tab-image");
 const panelText = document.getElementById("panel-text");
 const panelImage = document.getElementById("panel-image");
+const tabIndicator = document.getElementById("tab-indicator");
+
+function moveIndicator(target) {
+  tabIndicator.style.width = target.offsetWidth + "px";
+  tabIndicator.style.transform = `translateX(${target.offsetLeft}px)`;
+}
 
 tabText.onclick = () => {
-  tabText.className = "tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-white";
-  tabImage.className = "tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-100 text-slate-600";
+  tabText.classList.add("active");
+  tabImage.classList.remove("active");
+  moveIndicator(tabText);
   panelText.classList.remove("hidden");
   panelImage.classList.add("hidden");
 };
 tabImage.onclick = () => {
-  tabImage.className = "tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-white";
-  tabText.className = "tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-100 text-slate-600";
+  tabImage.classList.add("active");
+  tabText.classList.remove("active");
+  moveIndicator(tabImage);
   panelImage.classList.remove("hidden");
   panelText.classList.add("hidden");
 };
+
+moveIndicator(tabText);
+window.addEventListener("resize", () => moveIndicator(tabText.classList.contains("active") ? tabText : tabImage));
 
 document.getElementById("pick-file").onclick = () => document.getElementById("file-input").click();
 document.getElementById("file-input").onchange = (e) => {
@@ -109,14 +261,14 @@ function clearMessages() {
 }
 
 function riskBadgeClass(level) {
-  if (level === "Low") return "bg-emerald-100 text-emerald-700";
-  if (level === "Medium") return "bg-amber-100 text-amber-700";
-  return "bg-red-100 text-red-700";
+  if (level === "Low") return "badge badge-success";
+  if (level === "Medium") return "badge badge-warning";
+  return "badge badge-danger";
 }
 function itcBadgeClass(status) {
-  if (status === "Eligible") return "bg-emerald-100 text-emerald-700";
-  if (status === "Blocked") return "bg-red-100 text-red-700";
-  return "bg-slate-100 text-slate-600";
+  if (status === "Eligible") return "badge badge-success";
+  if (status === "Blocked") return "badge badge-danger";
+  return "badge badge-neutral";
 }
 
 function renderResult(data) {
@@ -126,48 +278,69 @@ function renderResult(data) {
   }
   const el = document.getElementById("result");
   el.innerHTML = `
-    <div class="flex justify-between items-start mb-4">
+    <div class="flex justify-between items-start gap-4 mb-6 pb-6" style="border-bottom:1px solid var(--border);">
       <div>
-        <p class="text-sm text-slate-400">Transaction ${data.transaction_id}</p>
-        <p class="text-lg font-semibold text-slate-900">${data.description}</p>
+        <p class="text-xs font-semibold tracking-wide" style="color:var(--text-tertiary);">TRANSACTION ${data.transaction_id}</p>
+        <p class="text-lg font-bold mt-1" style="color:var(--text-primary);">${data.description}</p>
       </div>
-      <p class="text-2xl font-bold text-slate-900">₹${Number(data.amount).toLocaleString("en-IN")}</p>
+      <p class="text-2xl font-extrabold whitespace-nowrap" style="color:var(--text-primary);">₹${Number(data.amount).toLocaleString("en-IN")}</p>
     </div>
 
     <div class="grid grid-cols-2 gap-4 mb-4">
-      <div class="bg-slate-50 rounded-xl p-4">
-        <p class="text-xs text-slate-400 mb-1">Category</p>
-        <p class="font-medium text-slate-900">${data.category}</p>
-        <p class="text-xs text-slate-400 mt-1">Confidence: ${(data.categorization_confidence * 100).toFixed(1)}%
-          ${data.categorization_needs_review ? '<span class="text-amber-600 font-medium">— Needs Review</span>' : ""}</p>
+      <div class="stat-tile">
+        <div class="stat-icon" style="background:var(--accent-soft);color:var(--accent);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+        </div>
+        <p class="text-xs font-semibold" style="color:var(--text-tertiary);">CATEGORY</p>
+        <p class="font-bold mt-0.5" style="color:var(--text-primary);">${data.category}</p>
+        <p class="text-xs mt-1.5" style="color:var(--text-tertiary);">
+          Confidence: ${(data.categorization_confidence * 100).toFixed(1)}%
+          ${data.categorization_needs_review ? '<span class="badge badge-warning ml-1">Needs Review</span>' : ""}
+        </p>
       </div>
-      <div class="bg-slate-50 rounded-xl p-4">
-        <p class="text-xs text-slate-400 mb-1">Risk Level</p>
-        <span class="inline-block px-2.5 py-1 rounded-full text-sm font-medium ${riskBadgeClass(data.risk_level)}">${data.risk_level}</span>
+      <div class="stat-tile">
+        <div class="stat-icon" style="background:var(--danger-soft);color:var(--danger);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86l-8.18 14.18A2 2 0 0 0 3.9 21h16.2a2 2 0 0 0 1.79-2.96L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+        </div>
+        <p class="text-xs font-semibold" style="color:var(--text-tertiary);">RISK LEVEL</p>
+        <div class="mt-1.5">
+          <span class="${riskBadgeClass(data.risk_level)}">${data.risk_level}</span>
+        </div>
       </div>
     </div>
 
-    <div class="bg-slate-50 rounded-xl p-4 mb-4">
-      <p class="text-xs text-slate-400 mb-2">GST (${data.gst_rate}${data.gst_rate !== "exempt" ? "%" : ""})</p>
-      <div class="grid grid-cols-3 gap-2 text-sm">
-        <div><span class="text-slate-400">CGST:</span> ₹${data.gst_split.cgst}</div>
-        <div><span class="text-slate-400">SGST:</span> ₹${data.gst_split.sgst}</div>
-        <div><span class="text-slate-400">IGST:</span> ₹${data.gst_split.igst}</div>
+    <div class="stat-tile mb-4">
+      <p class="text-xs font-semibold mb-3" style="color:var(--text-tertiary);">
+        GST ${data.gst_rate !== "exempt" ? `— ${data.gst_rate}%` : "— Exempt"}
+      </p>
+      <div class="grid grid-cols-3 gap-3">
+        <div class="p-3 rounded-lg text-center" style="background:var(--surface);border:1px solid var(--border);">
+          <p class="text-xs" style="color:var(--text-tertiary);">CGST</p>
+          <p class="font-bold mt-0.5" style="color:var(--text-primary);">₹${data.gst_split.cgst}</p>
+        </div>
+        <div class="p-3 rounded-lg text-center" style="background:var(--surface);border:1px solid var(--border);">
+          <p class="text-xs" style="color:var(--text-tertiary);">SGST</p>
+          <p class="font-bold mt-0.5" style="color:var(--text-primary);">₹${data.gst_split.sgst}</p>
+        </div>
+        <div class="p-3 rounded-lg text-center" style="background:var(--surface);border:1px solid var(--border);">
+          <p class="text-xs" style="color:var(--text-tertiary);">IGST</p>
+          <p class="font-bold mt-0.5" style="color:var(--text-primary);">₹${data.gst_split.igst}</p>
+        </div>
       </div>
     </div>
 
-    <div class="bg-slate-50 rounded-xl p-4">
-      <div class="flex items-center gap-2 mb-1">
-        <p class="text-xs text-slate-400">Input Tax Credit</p>
-        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${itcBadgeClass(data.itc_eligible)}">${data.itc_eligible}</span>
+    <div class="stat-tile">
+      <div class="flex items-center gap-2 mb-1.5">
+        <p class="text-xs font-semibold" style="color:var(--text-tertiary);">INPUT TAX CREDIT</p>
+        <span class="${itcBadgeClass(data.itc_eligible)}">${data.itc_eligible}</span>
       </div>
-      <p class="text-sm text-slate-600">${data.itc_reason}</p>
+      <p class="text-sm" style="color:var(--text-secondary);">${data.itc_reason}</p>
     </div>
 
     ${data.ocr_text ? `
-    <div class="mt-4 bg-slate-50 rounded-xl p-4">
-      <p class="text-xs text-slate-400 mb-1">OCR Extracted Text (confidence: ${data.ocr_confidence}%)</p>
-      <pre class="text-xs text-slate-500 whitespace-pre-wrap">${data.ocr_text}</pre>
+    <div class="mt-4">
+      <p class="text-xs font-semibold mb-2" style="color:var(--text-tertiary);">OCR EXTRACTED TEXT — confidence ${data.ocr_confidence}%</p>
+      <pre class="ocr-block">${data.ocr_text}</pre>
     </div>` : ""}
   `;
   el.classList.remove("hidden");
