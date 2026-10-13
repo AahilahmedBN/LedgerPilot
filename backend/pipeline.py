@@ -115,7 +115,10 @@ def process_transaction(
 
     # Step 1: Categorization
     category_key, cat_confidence, needs_review = categorize(description_text)
-    log_categorization_decision(transaction_id, category_key, cat_confidence, needs_review)
+    log_categorization_decision(
+        transaction_id, category_key, cat_confidence, needs_review,
+        description=description_text, amount=amount,
+    )
 
     # Step 2: Rule engine (GST + ITC), date-aware
     try:
@@ -125,6 +128,7 @@ def process_transaction(
 
     log_itc_determination(
         transaction_id, category_key, rule_result["itc_eligible"], rule_result["itc_reason"],
+        gst_rate=rule_result["gst_rate"], gst_split=rule_result["gst_split"],
     )
 
     # Step 3: Risk classifier — uses the RULE ENGINE's itc_eligible AND its

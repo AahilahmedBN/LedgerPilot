@@ -34,18 +34,27 @@ def _write_entry(entry, log_path=LOG_FILENAME):
 
 def log_categorization_decision(
     transaction_id, predicted_category, confidence, needs_review,
+    description=None, amount=None,
     model_version="tfidf_logreg_v1", log_path=LOG_FILENAME,
 ):
     """Call this every time the categorization model makes a prediction —
     not just the ones that get flagged. A complete log needs the trusted
     decisions too, or you can't compute honest statistics on how often the
-    threshold actually fires."""
+    threshold actually fires.
+
+    description/amount are optional (default None) so older callers (e.g.
+    security/test_hardening.py) keep working unmodified — they exist so
+    the audit log can double as the source of truth for a transaction
+    history view, not just a decision trail. Entries logged before these
+    params existed will simply have description/amount as null."""
     entry = {
         "event_type": "categorization_decision",
         "transaction_id": transaction_id,
         "predicted_category": predicted_category,
         "confidence": round(float(confidence), 4),
         "needs_review": bool(needs_review),
+        "description": description,
+        "amount": amount,
         "model_version": model_version,
     }
     return _write_entry(entry, log_path)
@@ -71,20 +80,27 @@ def log_risk_flag(
 
 
 def log_itc_determination(
-    transaction_id, category, itc_eligible, reason, log_path=LOG_FILENAME,
+    transaction_id, category, itc_eligible, reason,
+    gst_rate=None, gst_split=None, log_path=LOG_FILENAME,
 ):
     """For the deterministic rule engine (Phase 5) — this one has no
     confidence score, because rule-engine output is deterministic, not
     probabilistic. Keeping this as a separate function (not reusing
     log_categorization_decision) makes that distinction explicit in the
     log itself — don't blur ML decisions and rule-engine decisions
-    together, they need different kinds of scrutiny."""
+    together, they need different kinds of scrutiny.
+
+    gst_rate/gst_split are optional (default None) for the same backward-
+    compatibility reason as log_categorization_decision's description/
+    amount — see that docstring."""
     entry = {
         "event_type": "itc_determination",
         "transaction_id": transaction_id,
         "category": category,
         "itc_eligible": itc_eligible,
         "reason": reason,
+        "gst_rate": gst_rate,
+        "gst_split": gst_split,
     }
     return _write_entry(entry, log_path)
 
@@ -102,6 +118,45 @@ def read_log(log_path=LOG_FILENAME):
             if line:
                 entries.append(json.loads(line))
     return entries
+
+
+def get_transaction_history(log_path=LOG_FILENAME):
+    """Regroups the flat, append-only event log back into one record per
+    transaction_id — the shape a transaction history view actually wants,
+    vs. the 3-events-per-transaction stream this file stores it as.
+    Returned in the order transactions first appeared (oldest first);
+    callers wanting most-recent-first should reverse the result.
+
+    Entries logged before description/amount/gst_rate/gst_split existed
+    (see log_categorization_decision/log_itc_determination) will have
+    those keys as None — real gaps in old data, not fabricated values."""
+    by_txn = {}
+    order = []
+    for e in read_log(log_path):
+        txn_id = e.get("transaction_id")
+        if txn_id is None:
+            continue
+        if txn_id not in by_txn:
+            by_txn[txn_id] = {"transaction_id": txn_id}
+            order.append(txn_id)
+        record = by_txn[txn_id]
+        event_type = e.get("event_type")
+        if event_type == "categorization_decision":
+            record["description"] = e.get("description")
+            record["amount"] = e.get("amount")
+            record["category"] = e.get("predicted_category")
+            record["categorization_confidence"] = e.get("confidence")
+            record["categorization_needs_review"] = e.get("needs_review")
+            record["analyzed_at"] = e.get("timestamp")
+        elif event_type == "itc_determination":
+            record["itc_eligible"] = e.get("itc_eligible")
+            record["itc_reason"] = e.get("reason")
+            record["gst_rate"] = e.get("gst_rate")
+            record["gst_split"] = e.get("gst_split")
+        elif event_type == "risk_flag":
+            record["risk_level"] = e.get("risk_level")
+            record["risk_confidence"] = e.get("confidence")
+    return [by_txn[t] for t in order]
 
 
 def summarize_log(log_path=LOG_FILENAME):

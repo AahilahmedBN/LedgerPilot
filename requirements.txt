@@ -10,3 +10,5 @@ flask
 flask-cors
 xgboost
 pytest
+google-genai
+python-dotenv
