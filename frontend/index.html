@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LedgerPilot — Compliance Co-Pilot</title>
+<script>
+  // Resolve theme before first paint to avoid a light/dark flash.
+  (function () {
+    try {
+      const saved = localStorage.getItem("ledgerpilot_theme");
+      const theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.setAttribute("data-theme", theme);
+    } catch (e) {
+      document.documentElement.setAttribute("data-theme", "light");
+    }
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --bg:#f6f7fb;
+    --surface:#ffffff;
+    --surface-2:#f8f9fc;
+    --border:#e7e9f1;
+    --border-strong:#d9dce6;
+    --text-primary:#0f1729;
+    --text-secondary:#5b6472;
+    --text-tertiary:#98a0ad;
+    --accent:#4f46e5;
+    --accent-hover:#4338ca;
+    --accent-soft:#eef1ff;
+    --accent-soft-strong:#e0e4ff;
+    --success:#0f9d64;
+    --success-soft:#e8f9f1;
+    --warning:#b45309;
+    --warning-soft:#fef6e7;
+    --danger:#dc2626;
+    --danger-soft:#fdecec;
+    --neutral-soft:#eef0f4;
+    --overlay:rgba(15,23,42,.5);
+    --shadow-sm:0 1px 2px rgba(15,23,42,.05);
+    --shadow-md:0 6px 20px -4px rgba(15,23,42,.08), 0 2px 6px -2px rgba(15,23,42,.05);
+    --radius-lg:20px;
+    --radius-md:12px;
+    --radius-sm:8px;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0b0f1a;
+    --surface:#121826;
+    --surface-2:#182031;
+    --border:#232b3d;
+    --border-strong:#2e3750;
+    --text-primary:#f1f4f9;
+    --text-secondary:#9aa4b8;
+    --text-tertiary:#6b7488;
+    --accent:#818cf8;
+    --accent-hover:#93a0f7;
+    --accent-soft:rgba(99,102,241,.16);
+    --accent-soft-strong:rgba(99,102,241,.28);
+    --success:#34d399;
+    --success-soft:rgba(52,211,153,.14);
+    --warning:#fbbf24;
+    --warning-soft:rgba(251,191,36,.14);
+    --danger:#f87171;
+    --danger-soft:rgba(248,113,113,.14);
+    --neutral-soft:#1c2333;
+    --overlay:rgba(0,0,0,.6);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.3);
+    --shadow-md:0 6px 24px -4px rgba(0,0,0,.45), 0 2px 8px -2px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    font-family:'Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:var(--bg);
+    color:var(--text-primary);
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-soft-strong); }
+  .text-tertiary{color:var(--text-tertiary);}
+  .text-secondary{color:var(--text-secondary);}
+
+  /* ---------- Shell / nav ---------- */
+  .app-shell{display:flex;min-height:100vh;}
+  .sidebar{width:252px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:22px 16px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+  .logo-mark{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);flex-shrink:0;}
+  .nav-item{display:flex;align-items:center;gap:11px;width:100%;padding:10px 12px;border-radius:var(--radius-sm);font-weight:600;font-size:14px;color:var(--text-secondary);cursor:pointer;border:none;background:transparent;font-family:inherit;text-align:left;transition:background .15s ease, color .15s ease;}
+  .nav-item svg{flex-shrink:0;opacity:.85;}
+  .nav-item:hover{background:var(--surface-2);color:var(--text-primary);}
+  .nav-item.active{background:var(--accent-soft);color:var(--accent);}
+  .nav-item.active svg{opacity:1;}
+
+  .mobile-tabbar{position:sticky;top:0;z-index:30;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;}
+  .mobile-tab{white-space:nowrap;padding:14px 16px;font-weight:600;font-size:13px;color:var(--text-secondary);background:none;border:none;font-family:inherit;cursor:pointer;border-bottom:2px solid transparent;}
+  .mobile-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+  .theme-toggle-btn{display:flex;align-items:center;gap:9px;width:100%;padding:10px 12px;border-radius:var(--radius-sm);font-weight:600;font-size:13px;color:var(--text-secondary);background:var(--surface-2);border:1px solid var(--border);cursor:pointer;font-family:inherit;transition:border-color .15s ease;}
+  .theme-toggle-btn:hover{border-color:var(--border-strong);}
+
+  .main-content{flex:1;min-width:0;}
+  .page-container{max-width:1280px;margin:0 auto;padding:32px 24px 64px;}
+  .page-header{margin-bottom:26px;}
+
+  /* ---------- Cards / primitives (reused across sections) ---------- */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);position:relative;overflow:hidden;}
+  .card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#4f46e5,#7c3aed,#2563eb);}
+  .card-plain{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);}
+
+  .eyebrow{display:inline-flex;align-items:center;gap:7px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:600;letter-spacing:.02em;padding:5px 12px;border-radius:999px;border:1px solid var(--accent-soft-strong);}
+  .eyebrow-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .tabs-wrap{position:relative;display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:4px;}
+  .tab-indicator{position:absolute;top:4px;bottom:4px;left:4px;background:var(--surface);border-radius:9px;box-shadow:var(--shadow-sm);transition:transform .28s cubic-bezier(.4,0,.2,1), width .28s cubic-bezier(.4,0,.2,1);z-index:0;}
+  .tab-btn{position:relative;z-index:1;flex:1;padding:10px 14px;border:none;background:transparent;font-family:inherit;font-weight:600;font-size:14px;color:var(--text-secondary);cursor:pointer;border-radius:9px;transition:color .2s ease;display:flex;align-items:center;justify-content:center;gap:6px;}
+  .tab-btn.active{color:var(--text-primary);}
+
+  label.field-label{display:block;font-size:12px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:6px;}
+  .input{width:100%;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:11px 14px;font-size:14px;font-family:inherit;color:var(--text-primary);transition:border-color .15s ease, box-shadow .15s ease;}
+  .input::placeholder{color:var(--text-tertiary);}
+  .input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3.5px var(--accent-soft);}
+  select.input{cursor:pointer;}
+  .input-prefix-wrap{position:relative;}
+  .input-prefix{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-tertiary);font-weight:600;font-size:14px;pointer-events:none;}
+  .input-prefix-wrap .input{padding-left:28px;}
+
+  .chip{display:flex;align-items:center;gap:8px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:9px 10px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text-secondary);transition:border-color .15s ease, background .15s ease, color .15s ease;user-select:none;}
+  .chip:hover{border-color:var(--accent);}
+  .chip-box{width:16px;height:16px;border-radius:5px;border:1.5px solid var(--border-strong);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s ease, border-color .15s ease;}
+  .chip-box svg{width:10px;height:10px;opacity:0;transition:opacity .12s ease;}
+  .chip:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent);}
+  .chip:has(input:checked) .chip-box{background:var(--accent);border-color:var(--accent);}
+  .chip:has(input:checked) .chip-box svg{opacity:1;}
+
+  .filter-chip{padding:7px 14px;border-radius:999px;border:1px solid var(--border-strong);font-size:13px;font-weight:600;color:var(--text-secondary);background:var(--surface);cursor:pointer;font-family:inherit;transition:all .15s ease;white-space:nowrap;}
+  .filter-chip:hover{border-color:var(--accent);}
+  .filter-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  .dropzone{border:1.5px dashed var(--border-strong);border-radius:var(--radius-md);padding:36px 20px;text-align:center;transition:border-color .2s ease, background .2s ease;background:var(--surface-2);}
+  .dropzone:hover{border-color:var(--accent);background:var(--accent-soft);}
+  .dropzone-icon{width:44px;height:44px;border-radius:12px;background:var(--surface);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--accent);}
+
+  .btn-primary{background:var(--accent);color:#fff;font-weight:600;font-size:14px;padding:12px 18px;border:none;border-radius:var(--radius-sm);cursor:pointer;box-shadow:var(--shadow-sm);transition:transform .15s ease, box-shadow .15s ease, background .15s ease;display:inline-flex;align-items:center;justify-content:center;gap:8px;}
+  .btn-primary:hover{background:var(--accent-hover);transform:translateY(-1px);box-shadow:var(--shadow-md);}
+  .btn-primary:active{transform:translateY(0) scale(.98);}
+  .btn-secondary{background:var(--surface);color:var(--text-secondary);font-weight:600;font-size:13px;padding:9px 14px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:border-color .15s ease, color .15s ease;}
+  .btn-secondary:hover{border-color:var(--danger);color:var(--danger);}
+  .link-btn{color:var(--accent);font-weight:600;font-size:14px;text-decoration:underline;text-underline-offset:3px;background:none;border:none;cursor:pointer;font-family:inherit;}
+  .link-btn:hover{color:var(--accent-hover);}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;}
+  .badge-success{background:var(--success-soft);color:var(--success);}
+  .badge-warning{background:var(--warning-soft);color:var(--warning);}
+  .badge-danger{background:var(--danger-soft);color:var(--danger);}
+  .badge-neutral{background:var(--neutral-soft);color:var(--text-secondary);}
+
+  .stat-tile{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;}
+  .stat-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
+
+  .loading-row{display:flex;align-items:center;justify-content:center;gap:10px;color:var(--text-secondary);font-size:14px;font-weight:500;padding:28px 0;}
+  .spinner{width:16px;height:16px;border-radius:50%;border:2px solid var(--accent-soft-strong);border-top-color:var(--accent);animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  #result, #error, .fade-in{animation:fadeSlideIn .35s cubic-bezier(.16,1,.3,1) both;}
+  @keyframes fadeSlideIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+  .ocr-block{background:#0f1729;color:#c9d1e0;border-radius:var(--radius-sm);padding:14px;font-family:'SFMono-Regular',Menlo,Consolas,monospace;font-size:12.5px;line-height:1.6;white-space:pre-wrap;max-height:220px;overflow:auto;}
+
+  .alert{border-radius:var(--radius-md);padding:14px 16px 14px 46px;font-size:14px;font-weight:500;margin-bottom:24px;background-repeat:no-repeat;background-position:16px center;background-size:18px 18px;border:1px solid transparent;}
+  .alert-danger{background-color:var(--danger-soft);color:var(--danger);border-color:#f6d0d0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23dc2626' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 9v4M12 17h.01M10.29 3.86l-8.18 14.18A2 2 0 0 0 3.9 21h16.2a2 2 0 0 0 1.79-2.96L13.71 3.86a2 2 0 0 0-3.42 0z'/%3E%3C/svg%3E");}
+  .banner-warn{background:var(--warning-soft);color:var(--warning);border:1px solid var(--warning-soft);border-radius:var(--radius-md);padding:11px 16px;font-size:13px;font-weight:600;margin-bottom:16px;}
+
+  /* ---------- Overview ---------- */
+  .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;}
+  .metric-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-sm);}
+  .metric-value{font-size:26px;font-weight:800;letter-spacing:-.01em;color:var(--text-primary);line-height:1.2;}
+  .metric-label{font-size:12.5px;font-weight:600;color:var(--text-tertiary);margin-top:4px;}
+
+  .segmented{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:3px;}
+  .segmented button{border:none;background:transparent;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--text-secondary);padding:6px 13px;border-radius:999px;cursor:pointer;transition:background .15s ease,color .15s ease;}
+  .segmented button.active{background:var(--surface);color:var(--accent);box-shadow:var(--shadow-sm);}
+
+  .attention-row{display:flex;align-items:center;gap:14px;padding:13px 4px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s ease;border-radius:8px;}
+  .attention-row:hover{background:var(--surface-2);}
+  .attention-row:last-child{border-bottom:none;}
+
+  .donut-wrap{position:relative;width:148px;height:148px;flex-shrink:0;}
+  .donut-chart{width:100%;height:100%;border-radius:50%;}
+  .donut-center{position:absolute;inset:20px;border-radius:50%;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+  .legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+
+  .cat-bar-track{height:8px;border-radius:999px;background:var(--neutral-soft);overflow:hidden;}
+  .cat-bar-fill{height:100%;border-radius:999px;background:var(--accent);transition:width .4s ease;}
+
+  .empty-state{text-align:center;padding:48px 24px;color:var(--text-secondary);}
+  .empty-state-icon{width:52px;height:52px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+
+  /* ---------- History / Rule Book tables ---------- */
+  .data-table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  .data-table th{text-align:left;font-size:11.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--text-tertiary);padding:0 12px 10px;border-bottom:1px solid var(--border);}
+  .data-table td{padding:13px 12px;border-bottom:1px solid var(--border);color:var(--text-primary);vertical-align:middle;}
+  .data-table tbody tr{cursor:pointer;transition:background .12s ease;}
+  .data-table tbody tr:hover{background:var(--surface-2);}
+  .data-table tbody tr:last-child td{border-bottom:none;}
+  .table-scroll{overflow-x:auto;}
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{position:fixed;inset:0;background:var(--overlay);display:flex;align-items:center;justify-content:center;padding:20px;z-index:60;}
+  .modal-panel{max-width:580px;width:100%;max-height:88vh;overflow-y:auto;padding:28px;position:relative;}
+  .modal-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;}
+  .modal-close:hover{color:var(--text-primary);border-color:var(--border-strong);background:var(--surface-2);}
+</style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Desktop sidebar -->
+    <aside class="sidebar hidden md:flex md:flex-col md:justify-between">
+      <div>
+        <div class="flex items-center gap-3 mb-8 px-2">
+          <div class="logo-mark">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M12 3l8 4v5c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V7l8-4z"/></svg>
+          </div>
+          <span class="text-base font-bold tracking-tight" style="color:var(--text-primary)">LedgerPilot</span>
+        </div>
+        <nav class="space-y-1" id="nav-desktop">
+          <button class="nav-item active" data-section="overview">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+            Overview
+          </button>
+          <button class="nav-item" data-section="analyze">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            Analyze Transaction
+          </button>
+          <button class="nav-item" data-section="history">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+            Transaction History
+          </button>
+          <button class="nav-item" data-section="rules">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            Rule Book
+          </button>
+        </nav>
+      </div>
+      <button id="theme-toggle-desktop" class="theme-toggle-btn"></button>
+    </aside>
+
+    <!-- Mobile top tab bar -->
+    <div class="main-content">
+      <div class="mobile-tabbar flex md:hidden items-center">
+        <button class="mobile-tab active" data-section="overview">Overview</button>
+        <button class="mobile-tab" data-section="analyze">Analyze</button>
+        <button class="mobile-tab" data-section="history">History</button>
+        <button class="mobile-tab" data-section="rules">Rule Book</button>
+        <button id="theme-toggle-mobile" class="mobile-tab" style="margin-left:auto;"></button>
+      </div>
+
+      <!-- OVERVIEW -->
+      <section id="page-overview" class="page-container">
+        <div class="page-header flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <span class="eyebrow mb-3"><span class="eyebrow-dot"></span>AI-Powered · GST Compliance</span>
+            <h1 class="text-2xl font-extrabold tracking-tight mt-3">Overview</h1>
+            <p class="text-sm text-secondary mt-1">Here's what needs your attention right now.</p>
+          </div>
+          <div class="segmented" id="period-toggle">
+            <button data-period="all" class="active">All time</button>
+            <button data-period="month">This month</button>
+          </div>
+        </div>
+
+        <div id="overview-fetch-error" class="banner-warn hidden">Could not reach the LedgerPilot server — this snapshot may be out of date.</div>
+
+        <div id="overview-empty" class="card-plain empty-state hidden">
+          <div class="empty-state-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+          </div>
+          <p class="font-bold text-base" style="color:var(--text-primary)">No transactions analyzed yet</p>
+          <p class="text-sm text-secondary mt-1 mb-5">Once you analyze a transaction, your compliance snapshot will show up here.</p>
+          <button class="btn-primary" style="display:inline-flex" onclick="showSection('analyze')">Analyze your first transaction</button>
+        </div>
+
+        <div id="overview-content">
+          <div class="metric-grid mb-6" id="metric-grid"></div>
+
+          <div class="card-plain p-6 mb-6">
+            <div class="flex items-center justify-between mb-1">
+              <h2 class="text-base font-bold">Needs Your Attention</h2>
+            </div>
+            <p class="text-xs text-tertiary mb-2">Recent transactions flagged for review or classified as high risk.</p>
+            <div id="attention-list"></div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="card-plain p-6">
+              <h2 class="text-base font-bold mb-4">Risk Breakdown</h2>
+              <div id="risk-chart" class="flex items-center gap-6"></div>
+            </div>
+            <div class="card-plain p-6">
+              <h2 class="text-base font-bold mb-4">Category Breakdown</h2>
+              <div id="category-chart"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ANALYZE -->
+      <section id="page-analyze" class="page-container hidden">
+        <div class="page-header">
+          <h1 class="text-2xl font-extrabold tracking-tight">Analyze Transaction</h1>
+          <p class="text-sm text-secondary mt-1">Type in a transaction, or photograph a receipt — both run the same compliance pipeline.</p>
+        </div>
+
+        <div class="card p-6 sm:p-7 mb-6">
+          <div id="tabs-wrap" class="tabs-wrap mb-7">
+            <div id="tab-indicator" class="tab-indicator"></div>
+            <button id="tab-text" class="tab-btn active">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              Enter Manually
+            </button>
+            <button id="tab-image" class="tab-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+              Upload Receipt
+            </button>
+          </div>
+
+          <!-- Manual entry form -->
+          <div id="panel-text">
+            <div class="space-y-5">
+              <div>
+                <label class="field-label">Transaction Description</label>
+                <input id="description" type="text" placeholder="e.g. Monthly Rent - Shop Premises" class="input">
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="field-label">Amount</label>
+                  <div class="input-prefix-wrap">
+                    <span class="input-prefix">₹</span>
+                    <input id="amount" type="number" placeholder="18,500" class="input">
+                  </div>
+                </div>
+                <div>
+                  <label class="field-label">Transaction Date</label>
+                  <input id="txn-date" type="date" class="input">
+                </div>
+              </div>
+              <div>
+                <label class="field-label">Filing Details</label>
+                <div class="grid grid-cols-3 gap-3">
+                  <label class="chip">
+                    <input id="claimed-itc" type="checkbox" checked class="sr-only">
+                    <span class="chip-box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+                    Claiming ITC
+                  </label>
+                  <label class="chip">
+                    <input id="valid-gstin" type="checkbox" checked class="sr-only">
+                    <span class="chip-box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+                    Valid GSTIN
+                  </label>
+                  <label class="chip">
+                    <input id="intra-state" type="checkbox" checked class="sr-only">
+                    <span class="chip-box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+                    Intra-state
+                  </label>
+                </div>
+              </div>
+              <button id="submit-text" class="btn-primary mt-1" style="width:100%;">
+                Analyze Transaction
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Image upload form -->
+          <div id="panel-image" class="hidden">
+            <div class="dropzone">
+              <input id="file-input" type="file" accept="image/*" class="hidden">
+              <div class="dropzone-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+              </div>
+              <button id="pick-file" type="button" class="link-btn">Choose a receipt image</button>
+              <p class="text-sm mt-2 text-tertiary">PNG or JPG — OCR runs automatically</p>
+              <p id="file-name" class="text-sm mt-2 font-medium text-secondary"></p>
+            </div>
+            <button id="submit-image" class="btn-primary mt-5" style="width:100%;">
+              Upload &amp; Analyze
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="loading" class="hidden loading-row">
+          <span class="spinner"></span>
+          Analyzing transaction…
+        </div>
+        <div id="error" class="hidden alert alert-danger"></div>
+        <div id="result" class="hidden card p-6 sm:p-7"></div>
+      </section>
+
+      <!-- HISTORY -->
+      <section id="page-history" class="page-container hidden">
+        <div class="page-header flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-extrabold tracking-tight">Transaction History</h1>
+            <p class="text-sm text-secondary mt-1">The server's real audit trail — every transaction it has logged.</p>
+          </div>
+          <button class="btn-secondary" id="history-refresh-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Refresh
+          </button>
+        </div>
+
+        <div id="history-fetch-error" class="banner-warn hidden">Could not reach the LedgerPilot server — is app.py running on port 5000?</div>
+
+        <div class="card-plain p-5 mb-5">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-center">
+            <input id="hist-search" type="text" placeholder="Search description…" class="input lg:col-span-2">
+            <select id="hist-filter-category" class="input"><option value="all">All Categories</option></select>
+            <select id="hist-filter-risk" class="input">
+              <option value="all">All Risk Levels</option>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+            <select id="hist-filter-itc" class="input">
+              <option value="all">All ITC Status</option>
+              <option value="Eligible">Eligible</option>
+              <option value="Blocked">Blocked</option>
+              <option value="Partially Eligible">Partially Eligible</option>
+              <option value="Not Applicable">Not Applicable</option>
+            </select>
+          </div>
+          <label class="chip mt-3" style="width:fit-content;">
+            <input id="hist-filter-review" type="checkbox" class="sr-only">
+            <span class="chip-box"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+            Needs review only
+          </label>
+        </div>
+
+        <div id="history-empty" class="card-plain empty-state hidden">
+          <div class="empty-state-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          </div>
+          <p class="font-bold text-base" style="color:var(--text-primary)">No transactions match yet</p>
+          <p class="text-sm text-secondary mt-1 mb-5" id="history-empty-copy">Analyze a transaction to see it appear here.</p>
+          <button class="btn-primary" style="display:inline-flex" onclick="showSection('analyze')">Go to Analyze Transaction</button>
+        </div>
+
+        <div class="card-plain p-2 table-scroll" id="history-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th><th>Description</th><th>Amount</th><th>Category</th><th>GST</th><th>ITC</th><th>Risk</th><th>Review</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- RULE BOOK -->
+      <section id="page-rules" class="page-container hidden">
+        <div class="page-header">
+          <h1 class="text-2xl font-extrabold tracking-tight">Rule Book</h1>
+          <p class="text-sm text-secondary mt-1">The 14 GST/ITC categories, as currently active in the versioned rule database.</p>
+        </div>
+
+        <div id="rules-fetch-error" class="banner-warn hidden">Could not reach the LedgerPilot server — showing the last known reference rates.</div>
+
+        <div class="card-plain p-5 mb-5">
+          <input id="rules-search" type="text" placeholder="Search categories or legal reasons…" class="input mb-4">
+          <div class="flex flex-wrap gap-2" id="rules-filter-chips">
+            <button class="filter-chip active" data-filter="all">All</button>
+            <button class="filter-chip" data-filter="Eligible">Eligible</button>
+            <button class="filter-chip" data-filter="Blocked">Blocked</button>
+            <button class="filter-chip" data-filter="Not Applicable">Not Applicable</button>
+          </div>
+        </div>
+
+        <div class="card-plain p-2 table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr><th>Category</th><th>GST Rate</th><th>ITC Eligibility</th><th>Legal Reason</th></tr>
+            </thead>
+            <tbody id="rules-tbody"></tbody>
+          </table>
+        </div>
+        <p class="text-xs text-tertiary mt-3">Fetched live from the versioned rule database (<code>/api/rules</code>) — not live-editable from this screen.</p>
+      </section>
+    </div>
+  </div>
+
+  <!-- Shared detail modal (History rows) -->
+  <div id="detail-modal" class="modal-overlay hidden">
+    <div class="modal-panel card-plain">
+      <button class="modal-close" id="modal-close-btn">&times;</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+<script>
+const API_BASE = "http://127.0.0.1:5000";
+const THEME_KEY = "ledgerpilot_theme";
+
+/* ---------------- Rule Book data — fetched live from GET /api/rules (the
+   versioned rule database), never hardcoded. FALLBACK_RULES only covers
+   the server being briefly unreachable, and is clearly labeled as such
+   when shown (see fetchRules()). ---------------- */
+const FALLBACK_RULES = [
+  { key: "purchase_goods", label: "Purchase of Goods (Raw Material/Trading Stock)", gst_rate: "18", itc_eligible: "Eligible", itc_reason: "Used in the course/furtherance of business — ordinary input goods, no Sec 17(5) restriction applies." },
+  { key: "capital_goods", label: "Capital Goods", gst_rate: "18", itc_eligible: "Eligible", itc_reason: "Capital goods used for business are ITC eligible under Sec 16, subject to depreciation not being claimed on the tax component (Sec 16(3))." },
+  { key: "input_services", label: "Input Services (Professional/Consulting/IT)", gst_rate: "18", itc_eligible: "Eligible", itc_reason: "Professional/consulting/IT services used for business operations are standard eligible input services." },
+  { key: "rent", label: "Rent/Lease of Business Premises", gst_rate: "18", itc_eligible: "Eligible", itc_reason: "Rent on commercial premises used for business is an eligible input service." },
+  { key: "utilities", label: "Utilities (Business Electricity/Internet)", gst_rate: "18", itc_eligible: "Eligible", itc_reason: "Utilities consumed for business premises are eligible input services (note: electricity itself is often outside GST, but the connection/service charges from a GST-registered provider may attract GST)." },
+  { key: "bank_charges", label: "Bank Charges/Financial Services", gst_rate: "18", itc_eligible: "Eligible", itc_reason: "Bank service charges (not interest) are taxable supplies of financial services and are ordinarily ITC eligible input services." },
+  { key: "motor_vehicle", label: "Motor Vehicle Expenses", gst_rate: "28", itc_eligible: "Blocked", itc_reason: "Sec 17(5)(a) blocks ITC on motor vehicles for transport of persons (seating <=13) and related services, unless used for further supply, passenger transport, or driving training." },
+  { key: "food_catering", label: "Food & Beverages/Outdoor Catering", gst_rate: "5", itc_eligible: "Blocked", itc_reason: "Sec 17(5)(b)(i) explicitly blocks ITC on food and beverages and outdoor catering, unless used to make an outward taxable supply of the same category or as part of a composite/mixed supply." },
+  { key: "club_membership", label: "Club/Health/Fitness Memberships", gst_rate: "18", itc_eligible: "Blocked", itc_reason: "Sec 17(5)(b)(ii) blocks ITC on membership of a club, health, or fitness centre." },
+  { key: "employee_travel", label: "Employee Travel Benefits", gst_rate: "5", itc_eligible: "Blocked", itc_reason: "Sec 17(5)(b)(iii) blocks ITC on travel benefits extended to employees (e.g. leave/home travel concession), unless obligatory under law." },
+  { key: "employee_insurance", label: "Employee Insurance/Reimbursements", gst_rate: "18", itc_eligible: "Blocked", itc_reason: "Sec 17(5)(b) blocks ITC on health/life insurance for employees unless it is obligatory for the employer under any law for the time being in force." },
+  { key: "works_contract", label: "Works Contract/Construction of Immovable Property", gst_rate: "18", itc_eligible: "Blocked", itc_reason: "Sec 17(5)(c)/(d) blocks ITC on works contract services and goods/services for construction of immovable property (other than plant & machinery), even when used for business." },
+  { key: "sales_revenue", label: "Sales/Outward Supply", gst_rate: "18", itc_eligible: "Not Applicable", itc_reason: "This is outward supply (revenue), not a purchase — it is relevant to output tax liability, not input tax credit." },
+  { key: "exempt_non_gst", label: "Exempt/Non-GST Expense", gst_rate: "exempt", itc_eligible: "Not Applicable", itc_reason: "Salaries, government fees, and similar payments are outside the scope of GST entirely — no ITC question arises." },
+];
+let RULES = FALLBACK_RULES;
+let RULES_BY_KEY = Object.fromEntries(RULES.map(r => [r.key, r]));
+function categoryLabel(key) { return (RULES_BY_KEY[key] && RULES_BY_KEY[key].label) || key; }
+
+async function fetchRules() {
+  const errEl = document.getElementById("rules-fetch-error");
+  try {
+    const res = await fetch(`${API_BASE}/api/rules`);
+    if (!res.ok) throw new Error("bad response");
+    const data = await res.json();
+    RULES = data.rules;
+    errEl.classList.add("hidden");
+  } catch (e) {
+    RULES = FALLBACK_RULES;
+    errEl.classList.remove("hidden");
+  }
+  RULES_BY_KEY = Object.fromEntries(RULES.map(r => [r.key, r]));
+  rebuildHistoryCategoryOptions();
+  renderRulesTable();
+  renderOverview();
+  renderHistoryTable();
+}
+
+/* ---------------- Theme ---------------- */
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  const isDark = theme === "dark";
+  const sunSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
+  const moonSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+  const label = isDark ? "Light mode" : "Dark mode";
+  const icon = isDark ? sunSvg : moonSvg;
+  document.getElementById("theme-toggle-desktop").innerHTML = `${icon}${label}`;
+  document.getElementById("theme-toggle-mobile").innerHTML = icon;
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  const next = current === "dark" ? "light" : "dark";
+  try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+  applyTheme(next);
+}
+function initTheme() {
+  const current = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  applyTheme(current);
+  document.getElementById("theme-toggle-desktop").onclick = toggleTheme;
+  document.getElementById("theme-toggle-mobile").onclick = toggleTheme;
+}
+
+/* ---------------- Transaction history — fetched live from GET /api/history,
+   the server's real audit trail (backend/audit_log.jsonl), never a
+   client-side store. ---------------- */
+let history = [];
+async function fetchHistory() {
+  const overviewErr = document.getElementById("overview-fetch-error");
+  const historyErr = document.getElementById("history-fetch-error");
+  try {
+    const res = await fetch(`${API_BASE}/api/history`);
+    if (!res.ok) throw new Error("bad response");
+    const data = await res.json();
+    history = data.transactions || [];
+    overviewErr.classList.add("hidden");
+    historyErr.classList.add("hidden");
+  } catch (e) {
+    overviewErr.classList.remove("hidden");
+    historyErr.classList.remove("hidden");
+  }
+  renderOverview();
+  renderHistoryTable();
+}
+
+/* ---------------- Small helpers ---------------- */
+function fmtINR(n) { return "₹" + Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 }); }
+function fmtDateTime(iso) {
+  return new Date(iso).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+function timeAgo(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+function riskBadgeClass(level) {
+  if (level === "Low") return "badge badge-success";
+  if (level === "Medium") return "badge badge-warning";
+  return "badge badge-danger";
+}
+function itcBadgeClass(status) {
+  if (status === "Eligible") return "badge badge-success";
+  if (status === "Blocked") return "badge badge-danger";
+  return "badge badge-neutral";
+}
+function dash(v) { return (v === null || v === undefined || v === "") ? "—" : v; }
+function totalTax(entry) {
+  const s = entry.gst_split || {};
+  return Number(s.cgst || 0) + Number(s.sgst || 0) + Number(s.igst || 0);
+}
+function isThisMonth(iso) {
+  const d = new Date(iso), now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+}
+
+/* ---------------- Navigation ---------------- */
+let currentSection = "overview";
+function showSection(name) {
+  currentSection = name;
+  ["overview", "analyze", "history", "rules"].forEach(s => {
+    document.getElementById(`page-${s}`).classList.toggle("hidden", s !== name);
+  });
+  document.querySelectorAll("#nav-desktop .nav-item").forEach(el => el.classList.toggle("active", el.dataset.section === name));
+  document.querySelectorAll(".mobile-tab[data-section]").forEach(el => el.classList.toggle("active", el.dataset.section === name));
+  if (name === "overview" || name === "history") fetchHistory();
+  if (name === "rules") fetchRules();
+}
+document.querySelectorAll("#nav-desktop .nav-item, .mobile-tab[data-section]").forEach(btn => {
+  btn.addEventListener("click", () => showSection(btn.dataset.section));
+});
+
+/* ---------------- Shared result detail renderer (Analyze result + History modal) ---------------- */
+function buildResultHTML(data, opts) {
+  opts = opts || {};
+  const metaLine = opts.showMeta
+    ? `<p class="text-xs text-tertiary mt-1">Analyzed ${fmtDateTime(data.analyzed_at)}</p>`
+    : "";
+  const partialNote = (data.description == null || data.amount == null)
+    ? `<p class="text-xs mt-1" style="color:var(--warning);">Partial record — logged before this system tracked full transaction details.</p>`
+    : "";
+  return `
+    <div class="flex justify-between items-start gap-4 mb-6 pb-6" style="border-bottom:1px solid var(--border);">
+      <div>
+        <p class="text-xs font-semibold tracking-wide text-tertiary">TRANSACTION ${data.transaction_id}</p>
+        <p class="text-lg font-bold mt-1" style="color:var(--text-primary);">${data.description || "(description unavailable)"}</p>
+        ${metaLine}
+        ${partialNote}
+      </div>
+      <p class="text-2xl font-extrabold whitespace-nowrap" style="color:var(--text-primary);">${data.amount != null ? fmtINR(data.amount) : "—"}</p>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="stat-tile">
+        <div class="stat-icon" style="background:var(--accent-soft);color:var(--accent);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+        </div>
+        <p class="text-xs font-semibold text-tertiary">CATEGORY</p>
+        <p class="font-bold mt-0.5" style="color:var(--text-primary);">${categoryLabel(data.category)}</p>
+        <p class="text-xs mt-1.5 text-tertiary">
+          Confidence: ${(data.categorization_confidence * 100).toFixed(1)}%
+          ${data.categorization_needs_review ? '<span class="badge badge-warning ml-1">Needs Review</span>' : ""}
+        </p>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-icon" style="background:var(--danger-soft);color:var(--danger);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86l-8.18 14.18A2 2 0 0 0 3.9 21h16.2a2 2 0 0 0 1.79-2.96L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+        </div>
+        <p class="text-xs font-semibold text-tertiary">RISK LEVEL</p>
+        <div class="mt-1.5">
+          ${data.risk_level ? `<span class="${riskBadgeClass(data.risk_level)}">${data.risk_level}</span>` : '<span class="text-secondary">—</span>'}
+        </div>
+      </div>
+    </div>
+
+    ${data.gst_split ? `
+    <div class="stat-tile mb-4">
+      <p class="text-xs font-semibold mb-3 text-tertiary">
+        GST ${data.gst_rate !== "exempt" ? `— ${data.gst_rate}%` : "— Exempt"}
+      </p>
+      <div class="grid grid-cols-3 gap-3">
+        <div class="p-3 rounded-lg text-center" style="background:var(--surface);border:1px solid var(--border);">
+          <p class="text-xs text-tertiary">CGST</p>
+          <p class="font-bold mt-0.5" style="color:var(--text-primary);">₹${data.gst_split.cgst}</p>
+        </div>
+        <div class="p-3 rounded-lg text-center" style="background:var(--surface);border:1px solid var(--border);">
+          <p class="text-xs text-tertiary">SGST</p>
+          <p class="font-bold mt-0.5" style="color:var(--text-primary);">₹${data.gst_split.sgst}</p>
+        </div>
+        <div class="p-3 rounded-lg text-center" style="background:var(--surface);border:1px solid var(--border);">
+          <p class="text-xs text-tertiary">IGST</p>
+          <p class="font-bold mt-0.5" style="color:var(--text-primary);">₹${data.gst_split.igst}</p>
+        </div>
+      </div>
+    </div>` : ""}
+
+    ${data.itc_eligible ? `
+    <div class="stat-tile">
+      <div class="flex items-center gap-2 mb-1.5">
+        <p class="text-xs font-semibold text-tertiary">INPUT TAX CREDIT</p>
+        <span class="${itcBadgeClass(data.itc_eligible)}">${data.itc_eligible}</span>
+      </div>
+      <p class="text-sm text-secondary">${data.itc_reason || ""}</p>
+    </div>` : ""}
+
+    ${data.ocr_text ? `
+    <div class="mt-4">
+      <p class="text-xs font-semibold mb-2 text-tertiary">OCR EXTRACTED TEXT — confidence ${data.ocr_confidence}%</p>
+      <pre class="ocr-block">${data.ocr_text}</pre>
+    </div>` : ""}
+  `;
+}
+
+function openDetailModal(entry) {
+  document.getElementById("modal-body").innerHTML = buildResultHTML(entry, { showMeta: true });
+  document.getElementById("detail-modal").classList.remove("hidden");
+}
+function closeDetailModal() {
+  document.getElementById("detail-modal").classList.add("hidden");
+}
+document.getElementById("modal-close-btn").onclick = closeDetailModal;
+document.getElementById("detail-modal").addEventListener("click", (e) => {
+  if (e.target.id === "detail-modal") closeDetailModal();
+});
+
+/* ---------------- Overview ---------------- */
+let overviewPeriod = "all";
+document.querySelectorAll("#period-toggle button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    overviewPeriod = btn.dataset.period;
+    document.querySelectorAll("#period-toggle button").forEach(b => b.classList.toggle("active", b === btn));
+    renderOverview();
+  });
+});
+
+let lastAttentionList = [];
+
+function renderOverview() {
+  const hasAny = history.length > 0;
+  document.getElementById("overview-empty").classList.toggle("hidden", hasAny);
+  document.getElementById("overview-content").classList.toggle("hidden", !hasAny);
+  if (!hasAny) return;
+
+  const scoped = overviewPeriod === "month" ? history.filter(h => isThisMonth(h.analyzed_at)) : history;
+
+  const totalTransactions = scoped.length;
+  const totalGst = scoped.reduce((sum, h) => sum + totalTax(h), 0);
+  const itcBlocked = scoped.filter(h => h.itc_eligible === "Blocked").length;
+  const needsReview = scoped.filter(h => h.categorization_needs_review).length;
+  const highRisk = scoped.filter(h => h.risk_level === "High").length;
+
+  const metrics = [
+    { label: "Transactions Processed", value: totalTransactions, color: "accent", icon: `<path d="M3 6h18M3 12h18M3 18h18"/>` },
+    { label: `Total GST${overviewPeriod === "month" ? " (this month)" : ""}`, value: fmtINR(totalGst), color: "accent", icon: `<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>` },
+    { label: "ITC Blocked", value: itcBlocked, color: "danger", icon: `<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>` },
+    { label: "Flagged for Review", value: needsReview, color: "warning", icon: `<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>` },
+    { label: "High Risk", value: highRisk, color: "danger", icon: `<path d="M10.29 3.86l-8.18 14.18A2 2 0 0 0 3.9 21h16.2a2 2 0 0 0 1.79-2.96L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/>` },
+  ];
+  document.getElementById("metric-grid").innerHTML = metrics.map(m => `
+    <div class="metric-card">
+      <div class="stat-icon" style="background:var(--${m.color}-soft);color:var(--${m.color});">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${m.icon}</svg>
+      </div>
+      <div class="metric-value">${m.value}</div>
+      <div class="metric-label">${m.label}</div>
+    </div>
+  `).join("");
+
+  lastAttentionList = history
+    .filter(h => h.categorization_needs_review || h.risk_level === "High")
+    .slice(0, 5);
+  const attentionEl = document.getElementById("attention-list");
+  if (lastAttentionList.length === 0) {
+    attentionEl.innerHTML = `
+      <div class="empty-state" style="padding:28px 12px;">
+        <p class="text-sm font-semibold" style="color:var(--text-primary)">Nothing needs your attention right now</p>
+        <p class="text-xs text-tertiary mt-1">Flagged and high-risk transactions will show up here.</p>
+      </div>`;
+  } else {
+    attentionEl.innerHTML = lastAttentionList.map((h, i) => `
+      <div class="attention-row" onclick="openDetailModal(lastAttentionList[${i}])">
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold truncate" style="color:var(--text-primary);">${h.description || "(description unavailable)"}</p>
+          <p class="text-xs text-tertiary mt-0.5">${categoryLabel(h.category)} · ${timeAgo(h.analyzed_at)}</p>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          ${h.categorization_needs_review ? '<span class="badge badge-warning">Needs Review</span>' : ""}
+          ${h.risk_level === "High" ? '<span class="badge badge-danger">High Risk</span>' : ""}
+          <span class="font-bold text-sm" style="color:var(--text-primary);">${h.amount != null ? fmtINR(h.amount) : "—"}</span>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  renderRiskChart(scoped);
+  renderCategoryChart(scoped);
+}
+
+function renderRiskChart(scoped) {
+  const el = document.getElementById("risk-chart");
+  const low = scoped.filter(h => h.risk_level === "Low").length;
+  const med = scoped.filter(h => h.risk_level === "Medium").length;
+  const high = scoped.filter(h => h.risk_level === "High").length;
+  const total = low + med + high;
+  if (total === 0) {
+    el.innerHTML = `<p class="text-sm text-tertiary">No data for this period.</p>`;
+    return;
+  }
+  const p1 = (low / total) * 100;
+  const p2 = p1 + (med / total) * 100;
+  el.innerHTML = `
+    <div class="donut-wrap">
+      <div class="donut-chart" style="background:conic-gradient(var(--success) 0 ${p1}%, var(--warning) ${p1}% ${p2}%, var(--danger) ${p2}% 100%);"></div>
+      <div class="donut-center">
+        <span class="text-xl font-extrabold" style="color:var(--text-primary);">${total}</span>
+        <span class="text-[11px] text-tertiary">transactions</span>
+      </div>
+    </div>
+    <div class="space-y-2.5 text-sm">
+      <div class="flex items-center gap-2"><span class="legend-dot" style="background:var(--success);"></span>Low <span class="ml-auto font-semibold">${low}</span></div>
+      <div class="flex items-center gap-2"><span class="legend-dot" style="background:var(--warning);"></span>Medium <span class="ml-auto font-semibold">${med}</span></div>
+      <div class="flex items-center gap-2"><span class="legend-dot" style="background:var(--danger);"></span>High <span class="ml-auto font-semibold">${high}</span></div>
+    </div>
+  `;
+}
+
+function renderCategoryChart(scoped) {
+  const el = document.getElementById("category-chart");
+  if (scoped.length === 0) {
+    el.innerHTML = `<p class="text-sm text-tertiary">No data for this period.</p>`;
+    return;
+  }
+  const counts = {};
+  scoped.forEach(h => { counts[h.category] = (counts[h.category] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const max = sorted[0][1];
+  const top = sorted.slice(0, 6);
+  el.innerHTML = top.map(([key, count]) => `
+    <div class="cat-bar-row">
+      <div class="flex justify-between text-sm mb-1.5">
+        <span class="text-secondary truncate pr-2">${categoryLabel(key)}</span>
+        <span class="font-semibold flex-shrink-0" style="color:var(--text-primary);">${count}</span>
+      </div>
+      <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${(count / max) * 100}%;"></div></div>
+    </div>
+  `).join("") + (sorted.length > 6 ? `<p class="text-xs text-tertiary mt-1">+${sorted.length - 6} more categories</p>` : "");
+}
+
+/* ---------------- Analyze tab (manual/image sub-tabs, unchanged API calls) ---------------- */
+const tabText = document.getElementById("tab-text");
+const tabImage = document.getElementById("tab-image");
+const panelText = document.getElementById("panel-text");
+const panelImage = document.getElementById("panel-image");
+const tabIndicator = document.getElementById("tab-indicator");
+
+function moveIndicator(target) {
+  tabIndicator.style.width = target.offsetWidth + "px";
+  tabIndicator.style.transform = `translateX(${target.offsetLeft}px)`;
+}
+tabText.onclick = () => {
+  tabText.classList.add("active"); tabImage.classList.remove("active");
+  moveIndicator(tabText);
+  panelText.classList.remove("hidden"); panelImage.classList.add("hidden");
+};
+tabImage.onclick = () => {
+  tabImage.classList.add("active"); tabText.classList.remove("active");
+  moveIndicator(tabImage);
+  panelImage.classList.remove("hidden"); panelText.classList.add("hidden");
+};
+window.addEventListener("resize", () => {
+  if (currentSection === "analyze") moveIndicator(tabText.classList.contains("active") ? tabText : tabImage);
+});
+
+document.getElementById("pick-file").onclick = () => document.getElementById("file-input").click();
+document.getElementById("file-input").onchange = (e) => {
+  const f = e.target.files[0];
+  document.getElementById("file-name").textContent = f ? f.name : "";
+};
+
+function showLoading(on) { document.getElementById("loading").classList.toggle("hidden", !on); }
+function showError(msg) {
+  const el = document.getElementById("error");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+function clearMessages() {
+  document.getElementById("error").classList.add("hidden");
+  document.getElementById("result").classList.add("hidden");
+}
+function renderAnalyzeResult(data) {
+  if (data.error) { showError(data.error); return; }
+  const el = document.getElementById("result");
+  el.innerHTML = buildResultHTML(data);
+  el.classList.remove("hidden");
+  // process_transaction() already logged this server-side — re-fetch the
+  // real history so Overview/History pick it up, rather than guessing
+  // locally what the audit log now contains.
+  fetchHistory();
+}
+
+document.getElementById("submit-text").onclick = async () => {
+  clearMessages();
+  const description = document.getElementById("description").value.trim();
+  const amount = document.getElementById("amount").value;
+  if (!description || !amount) {
+    showError("Please enter both a description and an amount.");
+    return;
+  }
+  const payload = {
+    description,
+    amount: parseFloat(amount),
+    is_intra_state: document.getElementById("intra-state").checked,
+    claimed_itc: document.getElementById("claimed-itc").checked,
+    has_valid_gstin: document.getElementById("valid-gstin").checked,
+  };
+  const dateVal = document.getElementById("txn-date").value;
+  if (dateVal) payload.transaction_date = dateVal;
+
+  showLoading(true);
+  try {
+    const res = await fetch(`${API_BASE}/api/analyze-text`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    renderAnalyzeResult(data);
+  } catch (err) {
+    showError("Could not reach the LedgerPilot server. Is app.py running on port 5000?");
+  } finally {
+    showLoading(false);
+  }
+};
+
+document.getElementById("submit-image").onclick = async () => {
+  clearMessages();
+  const file = document.getElementById("file-input").files[0];
+  if (!file) {
+    showError("Please choose a receipt image first.");
+    return;
+  }
+  const formData = new FormData();
+  formData.append("document", file);
+
+  showLoading(true);
+  try {
+    const res = await fetch(`${API_BASE}/api/analyze-image`, { method: "POST", body: formData });
+    const data = await res.json();
+    renderAnalyzeResult(data);
+  } catch (err) {
+    showError("Could not reach the LedgerPilot server. Is app.py running on port 5000?");
+  } finally {
+    showLoading(false);
+  }
+};
+
+/* ---------------- Transaction History ---------------- */
+const histSearch = document.getElementById("hist-search");
+const histCategory = document.getElementById("hist-filter-category");
+const histRisk = document.getElementById("hist-filter-risk");
+const histItc = document.getElementById("hist-filter-itc");
+const histReview = document.getElementById("hist-filter-review");
+
+function rebuildHistoryCategoryOptions() {
+  const current = histCategory.value;
+  histCategory.querySelectorAll('option:not([value="all"])').forEach(o => o.remove());
+  RULES.forEach(r => {
+    const opt = document.createElement("option");
+    opt.value = r.key;
+    opt.textContent = r.label;
+    histCategory.appendChild(opt);
+  });
+  if ([...histCategory.options].some(o => o.value === current)) histCategory.value = current;
+}
+
+let lastHistoryRows = [];
+function renderHistoryTable() {
+  const search = histSearch.value.trim().toLowerCase();
+  const catFilter = histCategory.value;
+  const riskFilter = histRisk.value;
+  const itcFilter = histItc.value;
+  const reviewOnly = histReview.checked;
+
+  lastHistoryRows = history.filter(h => {
+    if (search && !(h.description || "").toLowerCase().includes(search)) return false;
+    if (catFilter !== "all" && h.category !== catFilter) return false;
+    if (riskFilter !== "all" && h.risk_level !== riskFilter) return false;
+    if (itcFilter !== "all" && h.itc_eligible !== itcFilter) return false;
+    if (reviewOnly && !h.categorization_needs_review) return false;
+    return true;
+  });
+
+  const tableWrap = document.getElementById("history-table-wrap");
+  const emptyEl = document.getElementById("history-empty");
+  const emptyCopy = document.getElementById("history-empty-copy");
+
+  if (lastHistoryRows.length === 0) {
+    tableWrap.classList.add("hidden");
+    emptyEl.classList.remove("hidden");
+    emptyCopy.textContent = history.length === 0
+      ? "Analyze a transaction to see it appear here."
+      : "No transactions match your current filters.";
+    return;
+  }
+  tableWrap.classList.remove("hidden");
+  emptyEl.classList.add("hidden");
+
+  document.getElementById("history-tbody").innerHTML = lastHistoryRows.map((h, i) => `
+    <tr onclick="openDetailModal(lastHistoryRows[${i}])">
+      <td class="whitespace-nowrap text-secondary">${fmtDateTime(h.analyzed_at)}</td>
+      <td class="max-w-[220px] truncate">${h.description || "(description unavailable)"}</td>
+      <td class="whitespace-nowrap font-semibold">${h.amount != null ? fmtINR(h.amount) : "—"}</td>
+      <td class="whitespace-nowrap">${categoryLabel(h.category)}</td>
+      <td class="whitespace-nowrap text-secondary">${h.gst_rate == null ? "—" : (h.gst_rate !== "exempt" ? h.gst_rate + "%" : "Exempt")}</td>
+      <td>${h.itc_eligible ? `<span class="${itcBadgeClass(h.itc_eligible)}">${h.itc_eligible}</span>` : dash(null)}</td>
+      <td>${h.risk_level ? `<span class="${riskBadgeClass(h.risk_level)}">${h.risk_level}</span>` : dash(null)}</td>
+      <td>${h.categorization_needs_review ? '<span class="badge badge-warning">Review</span>' : '<span class="text-tertiary">—</span>'}</td>
+    </tr>
+  `).join("");
+}
+[histSearch, histCategory, histRisk, histItc, histReview].forEach(el => {
+  el.addEventListener("input", renderHistoryTable);
+  el.addEventListener("change", renderHistoryTable);
+});
+document.getElementById("history-refresh-btn").onclick = () => fetchHistory();
+
+/* ---------------- Rule Book ---------------- */
+let rulesFilter = "all";
+const rulesSearch = document.getElementById("rules-search");
+document.querySelectorAll("#rules-filter-chips .filter-chip").forEach(btn => {
+  btn.addEventListener("click", () => {
+    rulesFilter = btn.dataset.filter;
+    document.querySelectorAll("#rules-filter-chips .filter-chip").forEach(b => b.classList.toggle("active", b === btn));
+    renderRulesTable();
+  });
+});
+rulesSearch.addEventListener("input", renderRulesTable);
+
+function renderRulesTable() {
+  const q = rulesSearch.value.trim().toLowerCase();
+  const rows = RULES.filter(r => {
+    if (rulesFilter !== "all" && r.itc_eligible !== rulesFilter) return false;
+    if (q && !r.label.toLowerCase().includes(q) && !r.itc_reason.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  document.getElementById("rules-tbody").innerHTML = rows.map(r => `
+    <tr style="cursor:default;">
+      <td class="font-semibold" style="color:var(--text-primary);">${r.label}</td>
+      <td class="whitespace-nowrap text-secondary">${r.gst_rate !== "exempt" ? r.gst_rate + "%" : "Exempt"}</td>
+      <td><span class="${itcBadgeClass(r.itc_eligible)}">${r.itc_eligible}</span></td>
+      <td class="text-secondary" style="min-width:280px;">${r.itc_reason}</td>
+    </tr>
+  `).join("");
+}
+
+/* ---------------- Init ---------------- */
+initTheme();
+moveIndicator(tabText);
+fetchRules();
+fetchHistory();
+</script>
+</body>
+</html>
