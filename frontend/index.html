@@ -213,6 +213,24 @@
   .modal-panel{max-width:580px;width:100%;max-height:88vh;overflow-y:auto;padding:28px;position:relative;}
   .modal-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;}
   .modal-close:hover{color:var(--text-primary);border-color:var(--border-strong);background:var(--surface-2);}
+
+  /* ---------- Chat widget ---------- */
+  .chat-fab{position:fixed;right:20px;bottom:20px;width:54px;height:54px;border-radius:50%;border:none;background:var(--accent);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-md);z-index:50;transition:background .15s ease, transform .15s ease;}
+  .chat-fab:hover{background:var(--accent-hover);transform:translateY(-1px);}
+  .chat-panel{position:fixed;right:20px;bottom:86px;width:360px;max-width:calc(100vw - 32px);height:480px;max-height:calc(100vh - 110px);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);display:flex;flex-direction:column;overflow:hidden;z-index:50;opacity:0;transform:translateY(16px);visibility:hidden;transition:opacity .2s ease, transform .2s ease, visibility .2s;}
+  .chat-panel.open{opacity:1;transform:translateY(0);visibility:visible;}
+  .chat-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);font-weight:700;font-size:14px;color:var(--text-primary);}
+  .chat-messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--bg);}
+  .chat-bubble{max-width:85%;padding:9px 12px;border-radius:14px;font-size:13.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word;}
+  .chat-bubble.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px;}
+  .chat-bubble.bot{align-self:flex-start;background:var(--surface);border:1px solid var(--border);color:var(--text-primary);border-bottom-left-radius:4px;}
+  .chat-bubble.error{align-self:flex-start;background:var(--danger-soft);color:var(--danger);border-bottom-left-radius:4px;}
+  .chat-form{display:flex;gap:8px;padding:10px;border-top:1px solid var(--border);background:var(--surface);}
+  .chat-input{flex:1;min-width:0;padding:9px 12px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--text-primary);font-family:inherit;font-size:14px;}
+  .chat-input:focus{outline:none;border-color:var(--accent);}
+  .chat-send{padding:0 14px;border:none;border-radius:var(--radius-sm);background:var(--accent);color:#fff;font-family:inherit;font-weight:600;font-size:13.5px;cursor:pointer;}
+  .chat-send:hover{background:var(--accent-hover);}
+  .chat-send:disabled{opacity:.6;cursor:not-allowed;}
 </style>
 </head>
 <body>
@@ -499,6 +517,22 @@
       <button class="modal-close" id="modal-close-btn">&times;</button>
       <div id="modal-body"></div>
     </div>
+  </div>
+
+  <!-- Chat widget -->
+  <button id="chat-fab" class="chat-fab" type="button" aria-label="Open chat assistant" aria-expanded="false">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  </button>
+  <div id="chat-panel" class="chat-panel" role="dialog" aria-label="Compliance assistant">
+    <div class="chat-header">
+      <span>Compliance Assistant</span>
+      <button id="chat-close" class="modal-close" style="position:static;" type="button" aria-label="Close chat">&times;</button>
+    </div>
+    <div id="chat-messages" class="chat-messages"></div>
+    <form id="chat-form" class="chat-form">
+      <input id="chat-input" class="chat-input" type="text" placeholder="Ask about your transactions…" autocomplete="off">
+      <button id="chat-send" class="chat-send" type="submit">Send</button>
+    </form>
   </div>
 
 <script>
@@ -1068,6 +1102,64 @@ function renderRulesTable() {
     </tr>
   `).join("");
 }
+
+/* ---------------- Chat widget ---------------- */
+(function () {
+  const fab = document.getElementById("chat-fab");
+  const panel = document.getElementById("chat-panel");
+  const closeBtn = document.getElementById("chat-close");
+  const list = document.getElementById("chat-messages");
+  const form = document.getElementById("chat-form");
+  const input = document.getElementById("chat-input");
+  const sendBtn = document.getElementById("chat-send");
+
+  function addBubble(kind, text) {
+    const el = document.createElement("div");
+    el.className = `chat-bubble ${kind}`;
+    el.textContent = text; // textContent: model replies are never parsed as HTML
+    list.appendChild(el);
+    list.scrollTop = list.scrollHeight;
+    return el;
+  }
+
+  function setOpen(open) {
+    panel.classList.toggle("open", open);
+    fab.setAttribute("aria-expanded", String(open));
+    if (open) input.focus();
+  }
+
+  fab.addEventListener("click", () => setOpen(!panel.classList.contains("open")));
+  closeBtn.addEventListener("click", () => setOpen(false));
+
+  addBubble("bot", "Hi! Ask me about your transactions, GST rates, or ITC eligibility.");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const message = input.value.trim();
+    if (!message) return;
+    addBubble("user", message);
+    input.value = "";
+    sendBtn.disabled = true;
+    const pending = addBubble("bot", "Thinking…");
+    try {
+      const res = await fetch(`${API_BASE}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data.reply !== "string") throw new Error(data.error || `HTTP ${res.status}`);
+      pending.textContent = data.reply;
+    } catch (err) {
+      pending.className = "chat-bubble error";
+      pending.textContent = "Sorry, I couldn't get a response right now. Please try again in a moment.";
+    } finally {
+      sendBtn.disabled = false;
+      list.scrollTop = list.scrollHeight;
+      input.focus();
+    }
+  });
+})();
 
 /* ---------------- Init ---------------- */
 initTheme();
